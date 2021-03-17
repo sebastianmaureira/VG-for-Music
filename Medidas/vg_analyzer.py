@@ -1,10 +1,14 @@
 import from_nx as medidas
 import networkx as nx
 import numpy as np
+from threading import Lock, Thread
 
 
 class VGAnalyzer:
     def __init__(self, nombre, link_list):
+        
+        self.lock_medidas = Lock()
+
         self.nombre = nombre
         self.link_list = link_list
         self.nodes = len(self.link_list)
@@ -24,20 +28,77 @@ class VGAnalyzer:
         self.directed_graph.remove_nodes_from(list(nx.isolates(self.directed_graph)))
 
     def get_measures(self):
-        self.measures["Cant. nodos"] = nx.number_of_nodes(self.graph)
-        self.measures["Cant. enlaces"] = nx.number_of_edges(self.graph)
-        self.measures["Clusterización promedio"] = nx.average_clustering(self.graph)
+        # Create Threads
+        threads = []
+        t0 = Thread(target=self.add_nodos)
+        threads.append(t0)
+        t1 = Thread(target=self.add_enlaces)
+        threads.append(t1)
+        t2 = Thread(target=self.add_clust)
+        threads.append(t2)
+        t3 = Thread(target=self.add_av_degree)
+        threads.append(t3)
+        t4 = Thread(target=self.add_radius)
+        threads.append(t4)
+        t5 = Thread(target=self.add_dia)
+        threads.append(t5)
+        t6 = Thread(target=self.add_com)
+        threads.append(t6)
+        t7 = Thread(target=self.add_modularidad)
+        threads.append(t7)
+
+        #Start threads
+        for thread in threads:
+            thread.start()
+
+        #Join threads
+        for thread in threads:
+            thread.join()
+
+
+    def add_nodos(self):
+        nodos = nx.number_of_nodes(self.graph)
+        with self.lock_medidas:
+            self.measures["Cant. nodos"] = nodos
+    
+    def add_enlaces(self):
+        enlaces = nx.number_of_edges(self.graph)
+        with self.lock_medidas:
+            self.measures["Cant. enlaces"] = enlaces
+    
+    def add_clust(self):
+        clust = nx.average_clustering(self.graph)
+        with self.lock_medidas:
+            self.measures["Clusterización promedio"] = clust
+
+    def add_av_degree(self):
         deg = nx.degree_centrality(self.graph)
         count = 0
         suma = 0
         for key in deg:
             count += 1
             suma += deg[key]
-        self.measures["Grado promedio"] = suma / count
-        self.measures["Radio"] = nx.radius(self.graph)
-        self.measures["Diametro"] = nx.diameter(self.graph)
-        self.measures["Cant. Comunidades"] = medidas.get_cant_comunities(self.graph)
-        self.measures["Modularidad"] = medidas.get_modularity(self.graph)
+        with self.lock_medidas:
+            self.measures["Grado promedio"] = suma / count
+    
+    def add_radius(self):
+        with self.lock_medidas:
+            self.measures["Radio"] = nx.radius(self.graph)
+    
+    def add_dia(self):
+        with self.lock_medidas:
+            self.measures["Diametro"] = nx.diameter(self.graph)
+
+    
+    def add_com(self):
+        coms = medidas.get_cant_comunities(self.graph)
+        with self.lock_medidas:
+            self.measures["Cant. Comunidades"] = coms
+    
+    def add_modularidad(self):
+        mod = medidas.get_modularity(self.graph)
+        with self.lock_medidas:
+            self.measures["Modularidad"] = mod
 
 if __name__ == "__main__":
 
